@@ -1,0 +1,910 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>City Road Network - Graph Theory Toolkit</title>
+  <style>
+    :root {
+      --bg: #f8fafc;
+      --card-bg: #ffffff;
+      --text: #1e293b;
+      --text-muted: #64748b;
+      --border: #e2e8f0;
+      --primary: #2563eb;
+      --primary-hover: #1d4ed8;
+      --danger: #dc2626;
+      --danger-hover: #b91c1c;
+      --highlight: #d97706;
+      --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      --mono: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: var(--font); background-color: var(--bg); color: var(--text); line-height: 1.5; padding-bottom: 40px; }
+    .container { max-width: 1050px; margin: 0 auto; padding: 0 16px; }
+
+    header { background: #ffffff; border-bottom: 1px solid var(--border); padding: 16px 0; margin-bottom: 20px; }
+    .header-flex { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; }
+    h1 { font-size: 1.35rem; font-weight: 700; color: #0f172a; }
+    .subtitle { font-size: 0.85rem; color: var(--text-muted); }
+
+    .card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 6px; padding: 16px; margin-bottom: 18px; }
+    .card h2 { font-size: 1.05rem; font-weight: 600; margin-bottom: 12px; color: #0f172a; }
+
+    /* Controls bar */
+    .toolbar { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 12px; }
+    .tool-group { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+    .tool-label { font-size: 0.8rem; font-weight: 600; margin-right: 4px; }
+    .instruction { font-size: 0.8rem; color: var(--text-muted); }
+
+    /* Canvas */
+    .canvas-box { width: 100%; height: 460px; background: #fafafa; border: 1px solid var(--border); border-radius: 4px; overflow: hidden; }
+    #networkSvg { width: 100%; height: 100%; user-select: none; }
+    .legend { margin-top: 8px; display: flex; gap: 20px; font-size: 0.8rem; color: var(--text-muted); align-items: center; }
+    .legend-line { display: inline-block; width: 14px; height: 3px; vertical-align: middle; margin-right: 4px; }
+    .legend-line.normal { background: #94a3b8; }
+    .legend-line.hl { background: var(--highlight); height: 4px; }
+
+    /* Grid Layout */
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+    @media (max-width: 820px) { .grid { grid-template-columns: 1fr; } }
+
+    /* Tabs */
+    .tab-bar { display: flex; border-bottom: 1px solid var(--border); margin-bottom: 14px; gap: 4px; }
+    .tab-btn { background: none; border: none; padding: 8px 12px; font-size: 0.83rem; font-weight: 500; cursor: pointer; color: var(--text-muted); border-bottom: 2px solid transparent; }
+    .tab-btn:hover { color: var(--text); }
+    .tab-btn.active { color: var(--primary); border-bottom: 2px solid var(--primary); }
+    .tab-pane { display: none; }
+    .tab-pane.active { display: block; }
+
+    /* Form inputs */
+    .form-row { display: flex; gap: 12px; margin-bottom: 12px; }
+    .form-col { flex: 1; display: flex; flex-direction: column; gap: 4px; }
+    label { font-size: 0.8rem; font-weight: 500; }
+    select, input { padding: 7px 10px; border: 1px solid var(--border); border-radius: 4px; font-size: 0.85rem; background: #fff; }
+
+    /* Buttons */
+    .btn { padding: 7px 12px; font-size: 0.82rem; font-weight: 500; border-radius: 4px; cursor: pointer; border: 1px solid transparent; }
+    .btn.primary { background: var(--primary); color: #fff; }
+    .btn.primary:hover { background: var(--primary-hover); }
+    .btn.secondary { background: #fff; border-color: var(--border); color: var(--text); }
+    .btn.secondary:hover { background: #f1f5f9; }
+    .btn.danger { background: #fff; border-color: #fecaca; color: var(--danger); }
+    .btn.danger:hover { background: #fee2e2; }
+    .btn-group { display: flex; flex-wrap: wrap; gap: 8px; }
+
+    .btn.mode { background: #fff; border-color: var(--border); color: var(--text); }
+    .btn.mode.active { background: #1e293b; border-color: #1e293b; color: #fff; }
+
+    /* Terminal Console */
+    .console-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+    .clear-btn { background: none; border: none; font-size: 0.78rem; color: var(--text-muted); cursor: pointer; }
+    .clear-btn:hover { text-decoration: underline; }
+    .terminal { background: #0f172a; color: #f1f5f9; padding: 14px; border-radius: 4px; font-family: var(--mono); font-size: 0.82rem; height: 230px; overflow-y: auto; white-space: pre-wrap; line-height: 1.45; }
+
+    /* Table */
+    .table-box { overflow-x: auto; max-height: 200px; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.83rem; text-align: left; }
+    th, td { padding: 7px 10px; border-bottom: 1px solid var(--border); }
+    th { background: #f8fafc; font-weight: 600; color: var(--text-muted); position: sticky; top: 0; }
+
+    /* SVG Elements */
+    .svg-edge { stroke: #94a3b8; stroke-width: 2.2; cursor: pointer; transition: stroke 0.15s, stroke-width 0.15s; }
+    .svg-edge.hl { stroke: var(--highlight); stroke-width: 4.5; }
+    .svg-node-group { cursor: pointer; }
+    .svg-node-circle { fill: #ffffff; stroke: #1e293b; stroke-width: 2.5; transition: fill 0.15s; }
+    .svg-node-group:hover .svg-node-circle { fill: #eff6ff; }
+    .svg-node-group.active .svg-node-circle { stroke: var(--highlight); stroke-width: 3.5; }
+    .svg-node-label { font-family: var(--font); font-size: 11px; font-weight: 600; fill: #0f172a; text-anchor: middle; dominant-baseline: central; pointer-events: none; }
+    .svg-edge-label { font-family: var(--font); font-size: 11px; font-weight: 600; fill: #475569; text-anchor: middle; pointer-events: none; }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="container header-flex">
+      <div>
+        <h1>Graph Theory Toolkit</h1>
+        <p class="subtitle">Interactive City Road Network Simulator</p>
+      </div>
+      <div style="display: flex; gap: 8px;">
+        <button id="btnResetDefault" class="btn secondary">Reset Network</button>
+        <button id="btnClearCanvas" class="btn danger">Clear Canvas</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="container">
+    <!-- Interactive Canvas -->
+    <section class="card">
+      <div class="toolbar">
+        <div class="tool-group">
+          <span class="tool-label">Mode:</span>
+          <button id="modeSelect" class="btn mode active">Move / Inspect</button>
+          <button id="modeAddNode" class="btn mode">+ Add City</button>
+          <button id="modeAddEdge" class="btn mode">+ Add Road</button>
+          <button id="modeDelete" class="btn mode">Delete Item</button>
+        </div>
+        <div id="instructionText" class="instruction">
+          Click and drag cities to move them. Click to inspect connections.
+        </div>
+      </div>
+
+      <div class="canvas-box">
+        <svg id="networkSvg"></svg>
+      </div>
+
+      <div class="legend">
+        <span><span class="legend-line normal"></span> Standard Road</span>
+        <span><span class="legend-line hl"></span> Highlighted Result</span>
+        <span style="margin-left: auto;">* Distances in km</span>
+      </div>
+    </section>
+
+    <!-- Operations & Log Output -->
+    <div class="grid">
+      <!-- Algorithms -->
+      <section class="card">
+        <h2>Run Algorithms</h2>
+        
+        <div class="tab-bar">
+          <button class="tab-btn active" data-tab="tab-dijkstra">Dijkstra Shortest Path</button>
+          <button class="tab-btn" data-tab="tab-mst">Spanning Tree (MST)</button>
+          <button class="tab-btn" data-tab="tab-matrices">Matrices</button>
+          <button class="tab-btn" data-tab="tab-props">Properties</button>
+        </div>
+
+        <!-- Tab: Dijkstra -->
+        <div id="tab-dijkstra" class="tab-pane active">
+          <div class="form-row">
+            <div class="form-col">
+              <label for="dijkstraSource">Source City:</label>
+              <select id="dijkstraSource"></select>
+            </div>
+            <div class="form-col">
+              <label for="dijkstraTarget">Target City:</label>
+              <select id="dijkstraTarget"></select>
+            </div>
+          </div>
+          <button id="btnRunDijkstra" class="btn primary">Run Dijkstra Algorithm</button>
+        </div>
+
+        <!-- Tab: MST -->
+        <div id="tab-mst" class="tab-pane">
+          <div class="form-row">
+            <div class="form-col">
+              <label for="mstAlgo">Algorithm:</label>
+              <select id="mstAlgo">
+                <option value="kruskal">Kruskal's Algorithm</option>
+                <option value="prim">Prim's Algorithm</option>
+              </select>
+            </div>
+            <div class="form-col" id="primStartWrapper" style="display:none;">
+              <label for="primStart">Start City:</label>
+              <select id="primStart"></select>
+            </div>
+          </div>
+          <button id="btnRunMST" class="btn primary">Compute Spanning Tree</button>
+        </div>
+
+        <!-- Tab: Matrices -->
+        <div id="tab-matrices" class="tab-pane">
+          <p style="font-size:0.83rem;color:var(--text-muted);margin-bottom:12px;">
+            Generate network matrix representations:
+          </p>
+          <div class="btn-group">
+            <button id="btnMatAdj01" class="btn secondary">Adjacency (0/1)</button>
+            <button id="btnMatAdjKm" class="btn secondary">Weighted Matrix (km)</button>
+            <button id="btnMatInc" class="btn secondary">Incidence Matrix (V × E)</button>
+          </div>
+        </div>
+
+        <!-- Tab: Properties -->
+        <div id="tab-props" class="tab-pane">
+          <p style="font-size:0.83rem;color:var(--text-muted);margin-bottom:12px;">
+            Test structural graph properties:
+          </p>
+          <div class="btn-group">
+            <button id="btnDegrees" class="btn secondary">Degrees & Handshaking</button>
+            <button id="btnEuler" class="btn secondary">Euler Path/Circuit</button>
+            <button id="btnHamiltonian" class="btn secondary">Hamiltonian Cycle</button>
+            <button id="btnBipartite" class="btn secondary">Bipartite Test</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Terminal Output -->
+      <section class="card">
+        <div class="console-header">
+          <h2>Output Terminal</h2>
+          <button id="btnClearLog" class="clear-btn">Clear Log</button>
+        </div>
+        <div id="terminal" class="terminal">Select an algorithm to view the calculated results.</div>
+      </section>
+    </div>
+
+    <!-- Roads Table -->
+    <section class="card">
+      <h2>Roads & Distances</h2>
+      <div class="table-box">
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>City 1</th>
+              <th>City 2</th>
+              <th>Distance</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="roadsTableBody"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const DEFAULT_CITIES = [
+      { id: "Delhi", x: 400, y: 70 },
+      { id: "Jaipur", x: 220, y: 170 },
+      { id: "Agra", x: 500, y: 160 },
+      { id: "Lucknow", x: 700, y: 90 },
+      { id: "Kanpur", x: 670, y: 220 },
+      { id: "Bhopal", x: 450, y: 340 },
+      { id: "Indore", x: 260, y: 350 },
+      { id: "Nagpur", x: 650, y: 440 }
+    ];
+
+    const DEFAULT_ROADS = [
+      { id: "e1", u: "Delhi", v: "Jaipur", w: 280 },
+      { id: "e2", u: "Delhi", v: "Agra", w: 230 },
+      { id: "e3", u: "Delhi", v: "Lucknow", w: 550 },
+      { id: "e4", u: "Jaipur", v: "Agra", w: 240 },
+      { id: "e5", u: "Jaipur", v: "Indore", w: 560 },
+      { id: "e6", u: "Agra", v: "Kanpur", w: 280 },
+      { id: "e7", u: "Lucknow", v: "Kanpur", w: 90 },
+      { id: "e8", u: "Agra", v: "Bhopal", w: 600 },
+      { id: "e9", u: "Kanpur", v: "Bhopal", w: 650 },
+      { id: "e10", u: "Bhopal", v: "Indore", w: 190 },
+      { id: "e11", u: "Bhopal", v: "Nagpur", w: 350 },
+      { id: "e12", u: "Indore", v: "Nagpur", w: 440 }
+    ];
+
+    let cities = [];
+    let roads = [];
+    let highlightedEdgeIds = new Set();
+    let currentMode = "select";
+    let edgeDraftSource = null;
+
+    let isDragging = false;
+    let dragTarget = null;
+    let dragOffset = { x: 0, y: 0 };
+
+    const svg = document.getElementById("networkSvg");
+    const terminal = document.getElementById("terminal");
+    const instructionText = document.getElementById("instructionText");
+
+    function init() {
+      resetToDefault();
+      bindEvents();
+    }
+
+    function resetToDefault() {
+      cities = JSON.parse(JSON.stringify(DEFAULT_CITIES));
+      roads = JSON.parse(JSON.stringify(DEFAULT_ROADS));
+      highlightedEdgeIds.clear();
+      edgeDraftSource = null;
+      syncUI();
+      log("Loaded 8-city road network (12 roads). Ready.");
+    }
+
+    function clearAll() {
+      cities = [];
+      roads = [];
+      highlightedEdgeIds.clear();
+      edgeDraftSource = null;
+      syncUI();
+      log("Canvas cleared. Switch to '+ Add City' to create your graph.");
+    }
+
+    function log(msg) { terminal.textContent = msg; }
+
+    function syncUI() {
+      populateDropdowns();
+      renderTable();
+      renderSvg();
+    }
+
+    function populateDropdowns() {
+      const srcSel = document.getElementById("dijkstraSource");
+      const tgtSel = document.getElementById("dijkstraTarget");
+      const primSel = document.getElementById("primStart");
+
+      const sVal = srcSel.value;
+      const tVal = tgtSel.value;
+
+      srcSel.innerHTML = "";
+      tgtSel.innerHTML = "";
+      primSel.innerHTML = "";
+
+      cities.forEach(c => {
+        srcSel.add(new Option(c.id, c.id));
+        tgtSel.add(new Option(c.id, c.id));
+        primSel.add(new Option(c.id, c.id));
+      });
+
+      if (cities.some(c => c.id === sVal)) srcSel.value = sVal;
+      else if (cities.length) srcSel.value = cities[0].id;
+
+      if (cities.some(c => c.id === tVal)) tgtSel.value = tVal;
+      else if (cities.length > 1) tgtSel.value = cities[cities.length - 1].id;
+    }
+
+    function renderTable() {
+      const tbody = document.getElementById("roadsTableBody");
+      tbody.innerHTML = "";
+      if (roads.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#94a3b8;">No roads currently defined.</td></tr>';
+        return;
+      }
+      roads.forEach(r => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td><strong>${r.id}</strong></td>
+          <td>${r.u}</td>
+          <td>${r.v}</td>
+          <td>${r.w} km</td>
+          <td><button class="btn danger" style="padding:2px 7px;font-size:0.75rem;">Delete</button></td>
+        `;
+        tr.querySelector("button").addEventListener("click", () => {
+          roads = roads.filter(road => road.id !== r.id);
+          highlightedEdgeIds.delete(r.id);
+          syncUI();
+        });
+        tbody.appendChild(tr);
+      });
+    }
+
+    function renderSvg() {
+      svg.innerHTML = "";
+
+      // 1. Draw roads
+      roads.forEach(r => {
+        const u = cities.find(c => c.id === r.u);
+        const v = cities.find(c => c.id === r.v);
+        if (!u || !v) return;
+
+        const isHl = highlightedEdgeIds.has(r.id);
+
+        const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+        line.setAttribute("x1", u.x);
+        line.setAttribute("y1", u.y);
+        line.setAttribute("x2", v.x);
+        line.setAttribute("y2", v.y);
+        line.setAttribute("class", `svg-edge ${isHl ? "hl" : ""}`);
+
+        line.addEventListener("click", (e) => {
+          e.stopPropagation();
+          if (currentMode === "delete") {
+            roads = roads.filter(road => road.id !== r.id);
+            highlightedEdgeIds.delete(r.id);
+            syncUI();
+            log(`Deleted road ${r.id} (${r.u} - ${r.v}).`);
+          } else {
+            log(`Road ${r.id}: ${r.u} to ${r.v}\nLength: ${r.w} km`);
+          }
+        });
+
+        svg.appendChild(line);
+
+        // Distance label box
+        const mx = (u.x + v.x) / 2;
+        const my = (u.y + v.y) / 2;
+
+        const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+        rect.setAttribute("x", mx - 16);
+        rect.setAttribute("y", my - 9);
+        rect.setAttribute("width", 32);
+        rect.setAttribute("height", 16);
+        rect.setAttribute("fill", "#ffffff");
+        rect.setAttribute("stroke", "#cbd5e1");
+        rect.setAttribute("rx", "3");
+        svg.appendChild(rect);
+
+        const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+        text.setAttribute("x", mx);
+        text.setAttribute("y", my);
+        text.setAttribute("class", "svg-edge-label");
+        text.textContent = r.w;
+        svg.appendChild(text);
+      });
+
+      // 2. Draw city nodes
+      cities.forEach(c => {
+        const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+        g.setAttribute("class", `svg-node-group ${edgeDraftSource === c.id ? "active" : ""}`);
+
+        const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+        circle.setAttribute("cx", c.x);
+        circle.setAttribute("cy", c.y);
+        circle.setAttribute("r", 19);
+        circle.setAttribute("class", "svg-node-circle");
+
+        const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+        text.setAttribute("x", c.x);
+        text.setAttribute("y", c.y);
+        text.setAttribute("class", "svg-node-label");
+        text.textContent = c.id.substring(0, 3);
+
+        g.appendChild(circle);
+        g.appendChild(text);
+
+        g.addEventListener("mousedown", (e) => {
+          if (currentMode !== "select") return;
+          isDragging = true;
+          dragTarget = c;
+          const pt = getSvgCoords(e);
+          dragOffset.x = pt.x - c.x;
+          dragOffset.y = pt.y - c.y;
+        });
+
+        g.addEventListener("click", (e) => {
+          e.stopPropagation();
+          handleNodeClick(c);
+        });
+
+        svg.appendChild(g);
+      });
+    }
+
+    function handleNodeClick(city) {
+      if (currentMode === "delete") {
+        cities = cities.filter(c => c.id !== city.id);
+        roads = roads.filter(r => r.u !== city.id && r.v !== city.id);
+        syncUI();
+        log(`Deleted city ${city.id}.`);
+        return;
+      }
+
+      if (currentMode === "addEdge") {
+        if (!edgeDraftSource) {
+          edgeDraftSource = city.id;
+          instructionText.textContent = `Selected ${city.id}. Now click destination city.`;
+          renderSvg();
+        } else {
+          if (edgeDraftSource === city.id) {
+            edgeDraftSource = null;
+            instructionText.textContent = "Click first city to start road.";
+            renderSvg();
+            return;
+          }
+
+          const existing = roads.find(r => (r.u === edgeDraftSource && r.v === city.id) || (r.v === edgeDraftSource && r.u === city.id));
+          if (existing) {
+            alert(`A road already connects ${edgeDraftSource} and ${city.id}.`);
+            edgeDraftSource = null;
+            renderSvg();
+            return;
+          }
+
+          const input = prompt(`Enter distance in km between ${edgeDraftSource} and ${city.id}:`, "200");
+          if (input !== null) {
+            const w = parseInt(input, 10);
+            if (!isNaN(w) && w > 0) {
+              const edgeId = "e" + (roads.length + 1);
+              roads.push({ id: edgeId, u: edgeDraftSource, v: city.id, w: w });
+              log(`Added road ${edgeDraftSource} - ${city.id} (${w} km).`);
+            } else {
+              alert("Please enter a valid positive number.");
+            }
+          }
+          edgeDraftSource = null;
+          instructionText.textContent = "Click first city to start road.";
+          syncUI();
+        }
+        return;
+      }
+
+      if (currentMode === "select") {
+        const incident = roads.filter(r => r.u === city.id || r.v === city.id);
+        const list = incident.map(r => r.u === city.id ? `${r.v} (${r.w} km)` : `${r.u} (${r.w} km)`);
+        log(`City: ${city.id}\nDegree: ${incident.length}\nConnected Roads:\n${list.length ? "- " + list.join("\n- ") : "None"}`);
+      }
+    }
+
+    function getSvgCoords(e) {
+      const rect = svg.getBoundingClientRect();
+      return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+    }
+
+    function bindEvents() {
+      svg.addEventListener("click", (e) => {
+        if (currentMode === "addNode") {
+          const pt = getSvgCoords(e);
+          const name = prompt("Enter city name:");
+          if (!name || !name.trim()) return;
+          const trimmed = name.trim();
+          if (cities.some(c => c.id.toLowerCase() === trimmed.toLowerCase())) {
+            alert("A city with this name already exists.");
+            return;
+          }
+          cities.push({ id: trimmed, x: Math.round(pt.x), y: Math.round(pt.y) });
+          syncUI();
+          log(`Added city ${trimmed}.`);
+        }
+      });
+
+      window.addEventListener("mousemove", (e) => {
+        if (!isDragging || !dragTarget) return;
+        const pt = getSvgCoords(e);
+        dragTarget.x = Math.max(25, Math.min(svg.clientWidth - 25, pt.x - dragOffset.x));
+        dragTarget.y = Math.max(25, Math.min(svg.clientHeight - 25, pt.y - dragOffset.y));
+        renderSvg();
+      });
+
+      window.addEventListener("mouseup", () => {
+        isDragging = false;
+        dragTarget = null;
+      });
+
+      // Modes
+      const modes = [
+        { id: "modeSelect", val: "select", text: "Click and drag cities to move them. Click to inspect connections." },
+        { id: "modeAddNode", val: "addNode", text: "Click anywhere on the blank canvas to place a new city." },
+        { id: "modeAddEdge", val: "addEdge", text: "Click first city to start road." },
+        { id: "modeDelete", val: "delete", text: "Click any city or road to remove it." }
+      ];
+
+      modes.forEach(m => {
+        document.getElementById(m.id).addEventListener("click", () => {
+          document.querySelectorAll(".btn.mode").forEach(b => b.classList.remove("active"));
+          document.getElementById(m.id).classList.add("active");
+          currentMode = m.val;
+          edgeDraftSource = null;
+          instructionText.textContent = m.text;
+          renderSvg();
+        });
+      });
+
+      // Top action buttons
+      document.getElementById("btnResetDefault").addEventListener("click", resetToDefault);
+      document.getElementById("btnClearCanvas").addEventListener("click", clearAll);
+      document.getElementById("btnClearLog").addEventListener("click", () => { terminal.textContent = ""; });
+
+      // Tab switching
+      document.querySelectorAll(".tab-btn").forEach(btn => {
+        btn.addEventListener("click", () => {
+          document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+          document.querySelectorAll(".tab-pane").forEach(p => p.classList.remove("active"));
+          btn.classList.add("active");
+          document.getElementById(btn.dataset.tab).classList.add("active");
+        });
+      });
+
+      document.getElementById("mstAlgo").addEventListener("change", (e) => {
+        document.getElementById("primStartWrapper").style.display = e.target.value === "prim" ? "flex" : "none";
+      });
+
+      // Algorithm Triggers
+      document.getElementById("btnRunDijkstra").addEventListener("click", runDijkstra);
+      document.getElementById("btnRunMST").addEventListener("click", runMST);
+      document.getElementById("btnMatAdj01").addEventListener("click", () => showAdjacency(false));
+      document.getElementById("btnMatAdjKm").addEventListener("click", () => showAdjacency(true));
+      document.getElementById("btnMatInc").addEventListener("click", showIncidence);
+      document.getElementById("btnDegrees").addEventListener("click", testHandshaking);
+      document.getElementById("btnEuler").addEventListener("click", testEuler);
+      document.getElementById("btnHamiltonian").addEventListener("click", testHamiltonian);
+      document.getElementById("btnBipartite").addEventListener("click", testBipartite);
+    }
+
+    function buildAdj() {
+      const adj = {};
+      cities.forEach(c => (adj[c.id] = []));
+      roads.forEach(r => {
+        if (adj[r.u] && adj[r.v]) {
+          adj[r.u].push({ node: r.v, w: r.w, id: r.id });
+          adj[r.v].push({ node: r.u, w: r.w, id: r.id });
+        }
+      });
+      return adj;
+    }
+
+    // 1. Dijkstra
+    function runDijkstra() {
+      const src = document.getElementById("dijkstraSource").value;
+      const tgt = document.getElementById("dijkstraTarget").value;
+      if (!src || !tgt) return log("Please pick both source and target cities.");
+
+      const adj = buildAdj();
+      const dist = {};
+      const prev = {};
+      const visited = new Set();
+      const order = [];
+
+      cities.forEach(c => { dist[c.id] = Infinity; prev[c.id] = null; });
+      dist[src] = 0;
+
+      while (visited.size < cities.length) {
+        let u = null;
+        let min = Infinity;
+        for (const c of cities) {
+          if (!visited.has(c.id) && dist[c.id] < min) {
+            min = dist[c.id];
+            u = c.id;
+          }
+        }
+        if (!u || min === Infinity) break;
+        visited.add(u);
+        order.push({ city: u, d: min });
+
+        for (const n of adj[u]) {
+          if (!visited.has(n.node)) {
+            const alt = dist[u] + n.w;
+            if (alt < dist[n.node]) {
+              dist[n.node] = alt;
+              prev[n.node] = { from: u, edgeId: n.id };
+            }
+          }
+        }
+      }
+
+      if (dist[tgt] === Infinity) {
+        highlightedEdgeIds.clear();
+        renderSvg();
+        return log(`=== DIJKSTRA ===\nNo route found from ${src} to ${tgt}.`);
+      }
+
+      const path = [];
+      const edgeIds = [];
+      let cur = tgt;
+      while (cur !== null) {
+        path.unshift(cur);
+        if (prev[cur]) {
+          edgeIds.push(prev[cur].edgeId);
+          cur = prev[cur].from;
+        } else {
+          cur = null;
+        }
+      }
+
+      highlightedEdgeIds = new Set(edgeIds);
+      renderSvg();
+
+      let out = `=== SHORTEST PATH: DIJKSTRA'S ALGORITHM ===\n`;
+      out += `Finalization Order (Source: ${src}):\n`;
+      order.forEach((step, idx) => {
+        out += `  Step ${idx + 1}: ${step.city.padEnd(9)} distance = ${step.d} km\n`;
+      });
+      out += `\nShortest route ${src} to ${tgt}:\n  ${path.join(" -> ")}\nTotal distance: ${dist[tgt]} km`;
+      log(out);
+    }
+
+    // 2. MST
+    function runMST() {
+      if (cities.length < 2) return log("At least 2 cities required.");
+      const type = document.getElementById("mstAlgo").value;
+      if (type === "kruskal") runKruskal();
+      else runPrim();
+    }
+
+    function runKruskal() {
+      const sorted = [...roads].sort((a, b) => a.w - b.w);
+      const parent = {};
+      cities.forEach(c => (parent[c.id] = c.id));
+      function find(x) {
+        while (parent[x] !== x) { parent[x] = parent[parent[x]]; x = parent[x]; }
+        return x;
+      }
+      const mst = [];
+      const steps = [];
+
+      for (const e of sorted) {
+        const ru = find(e.u), rv = find(e.v);
+        if (ru !== rv) {
+          parent[ru] = rv;
+          mst.push(e);
+          steps.push(`ADD  ${e.u}-${e.v} (${e.w} km)`);
+        } else {
+          steps.push(`SKIP ${e.u}-${e.v} (${e.w} km): cycle`);
+        }
+        if (mst.length === cities.length - 1) break;
+      }
+
+      highlightedEdgeIds = new Set(mst.map(e => e.id));
+      renderSvg();
+
+      const cost = mst.reduce((sum, e) => sum + e.w, 0);
+      let out = `=== MINIMAL SPANNING TREE (KRUSKAL) ===\n${steps.join("\n")}\n\n`;
+      out += `Edges chosen (${mst.length}):\n` + mst.map(e => `  ${e.u}-${e.v} (${e.w} km)`).join("\n");
+      out += `\nTotal cost = ${cost} km`;
+      log(out);
+    }
+
+    function runPrim() {
+      const start = document.getElementById("primStart").value || cities[0].id;
+      const adj = buildAdj();
+      const visited = new Set([start]);
+      const mst = [];
+      const steps = [];
+
+      while (visited.size < cities.length) {
+        let best = null, min = Infinity;
+        for (const u of visited) {
+          for (const edge of adj[u]) {
+            if (!visited.has(edge.node) && edge.w < min) {
+              min = edge.w;
+              best = { u: u, v: edge.node, w: edge.w, id: edge.id };
+            }
+          }
+        }
+        if (!best) break;
+        visited.add(best.v);
+        mst.push(best);
+        steps.push(`ADD  ${best.u}-${best.v} (${best.w} km)`);
+      }
+
+      highlightedEdgeIds = new Set(mst.map(e => e.id));
+      renderSvg();
+
+      const cost = mst.reduce((sum, e) => sum + e.w, 0);
+      let out = `=== MINIMAL SPANNING TREE (PRIM, START: ${start}) ===\n${steps.join("\n")}\n\n`;
+      out += `Total cost = ${cost} km`;
+      log(out);
+    }
+
+    // 3. Matrices
+    function showAdjacency(weighted) {
+      if (!cities.length) return log("No cities available.");
+      const n = cities.length;
+      const lbl = cities.map(c => c.id.substring(0, 3));
+      const mat = Array.from({ length: n }, () => Array(n).fill(0));
+
+      roads.forEach(r => {
+        const u = cities.findIndex(c => c.id === r.u);
+        const v = cities.findIndex(c => c.id === r.v);
+        if (u !== -1 && v !== -1) {
+          const val = weighted ? r.w : 1;
+          mat[u][v] = val;
+          mat[v][u] = val;
+        }
+      });
+
+      let out = `=== ${weighted ? "WEIGHTED ADJACENCY MATRIX (km)" : "ADJACENCY MATRIX (0/1)"} ===\n\n`;
+      out += "     " + lbl.map(l => l.padStart(5)).join("") + "\n";
+      out += "     " + "-----".repeat(lbl.length) + "\n";
+      mat.forEach((row, i) => {
+        out += lbl[i].padStart(4) + " |" + row.map(v => String(v).padStart(5)).join("") + "\n";
+      });
+      log(out);
+    }
+
+    function showIncidence() {
+      if (!cities.length || !roads.length) return log("Need cities and roads for an incidence matrix.");
+      const nLbl = cities.map(c => c.id.substring(0, 3));
+      const eLbl = roads.map(r => r.id);
+
+      let out = `=== INCIDENCE MATRIX (VERTICES × EDGES) ===\n\n`;
+      out += "     " + eLbl.map(l => l.padStart(5)).join("") + "\n";
+      out += "     " + "-----".repeat(eLbl.length) + "\n";
+
+      cities.forEach((c, i) => {
+        let row = nLbl[i].padStart(4) + " |";
+        roads.forEach(r => {
+          row += String(r.u === c.id || r.v === c.id ? 1 : 0).padStart(5);
+        });
+        out += row + "\n";
+      });
+      log(out);
+    }
+
+    // 4. Properties
+    function testHandshaking() {
+      const adj = buildAdj();
+      let sum = 0;
+      let out = `=== VERTEX DEGREES & HANDSHAKING LEMMA ===\n\n`;
+      const seq = [];
+      cities.forEach(c => {
+        const d = adj[c.id].length;
+        seq.push(d);
+        sum += d;
+        out += `  deg(${c.id}) = ${d}\n`;
+      });
+      seq.sort((a, b) => b - a);
+      out += `\nDegree Sequence: [${seq.join(", ")}]\n`;
+      out += `Sum of degrees = ${sum}\n`;
+      out += `2 × |E| = 2 × ${roads.length} = ${2 * roads.length}\n`;
+      out += `Handshaking Lemma holds: ${sum === 2 * roads.length ? "TRUE" : "FALSE"}`;
+      log(out);
+    }
+
+    function testEuler() {
+      const adj = buildAdj();
+      const odd = cities.filter(c => adj[c.id].length % 2 !== 0).map(c => c.id);
+      let out = `=== EULERIAN GRAPH CHECK ===\n\n`;
+      out += `Odd-degree vertices: ${odd.length ? odd.join(", ") : "None"}\n`;
+      out += `Odd count: ${odd.length}\n\n`;
+      if (odd.length === 0) out += "Result: Euler CIRCUIT exists (all vertices even).";
+      else if (odd.length === 2) out += `Result: Euler PATH exists (starts at ${odd[0]} and ends at ${odd[1]}).`;
+      else out += "Result: NO Euler path or circuit (needs 0 or 2 odd-degree vertices).";
+      log(out);
+    }
+
+    function testHamiltonian() {
+      if (cities.length < 3) return log("At least 3 cities required for Hamiltonian cycle.");
+      const adj = buildAdj();
+      const n = cities.length;
+      let cycle = null;
+
+      function dfs(cur, path, seen) {
+        if (path.length === n) {
+          if (adj[cur].some(e => e.node === path[0])) cycle = [...path, path[0]];
+          return;
+        }
+        for (const e of adj[cur]) {
+          if (!seen.has(e.node) && !cycle) {
+            seen.add(e.node);
+            path.push(e.node);
+            dfs(e.node, path, seen);
+            path.pop();
+            seen.delete(e.node);
+          }
+        }
+      }
+
+      dfs(cities[0].id, [cities[0].id], new Set([cities[0].id]));
+
+      if (cycle) {
+        const hl = [];
+        let total = 0;
+        for (let i = 0; i < cycle.length - 1; i++) {
+          const r = roads.find(x => (x.u === cycle[i] && x.v === cycle[i+1]) || (x.v === cycle[i] && x.u === cycle[i+1]));
+          if (r) { hl.push(r.id); total += r.w; }
+        }
+        highlightedEdgeIds = new Set(hl);
+        renderSvg();
+        log(`=== HAMILTONIAN CYCLE ===\nTour: ${cycle.join(" -> ")}\nTotal tour length = ${total} km`);
+      } else {
+        highlightedEdgeIds.clear();
+        renderSvg();
+        log("No Hamiltonian cycle found in the current graph.");
+      }
+    }
+
+    function testBipartite() {
+      const adj = buildAdj();
+      const color = {};
+      cities.forEach(c => (color[c.id] = -1));
+      let isBip = true;
+
+      for (const start of cities) {
+        if (color[start.id] !== -1) continue;
+        color[start.id] = 0;
+        const q = [start.id];
+        while (q.length && isBip) {
+          const u = q.shift();
+          for (const e of adj[u]) {
+            if (color[e.node] === -1) {
+              color[e.node] = 1 - color[u];
+              q.push(e.node);
+            } else if (color[e.node] === color[u]) {
+              isBip = false;
+              break;
+            }
+          }
+        }
+      }
+
+      if (isBip) {
+        const p1 = cities.filter(c => color[c.id] === 0).map(c => c.id);
+        const p2 = cities.filter(c => color[c.id] === 1).map(c => c.id);
+        log(`=== BIPARTITE CHECK ===\nGraph IS bipartite.\nPart A: [${p1.join(", ")}]\nPart B: [${p2.join(", ")}]`);
+      } else {
+        log(`=== BIPARTITE CHECK ===\nGraph is NOT bipartite (contains odd-length cycles).`);
+      }
+    }
+
+    init();
+  </script>
+</body>
+</html>
